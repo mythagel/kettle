@@ -5,12 +5,8 @@
 #include <DallasTemperature.h>
 #include <AutoPID.h>
 #include <avr/sleep.h>
-
-//#define PID
-
-#ifdef PID
 #include <TimerOne.h>
-#endif
+#include "pitches.h"
 
 constexpr int kEncoderAPin = 15;      // A1
 constexpr int kEncoderBPin = 14;      // A0
@@ -26,6 +22,8 @@ constexpr int kSensorConversionMs = 750 / (1 << (12 - kSensorResolution));
 constexpr int kMinTemp = 50;
 constexpr int kMaxTemp = 100;
 constexpr int kDefaultTemp = 74;
+
+constexpr int kPresetTemps[] = {70, 74, 85, 100};
 
 constexpr uint32_t kIdleOffMs = 30 * 1000;
 constexpr uint32_t kSetTempMs = 2 * 1000;
@@ -54,11 +52,7 @@ constexpr uint16_t kDigits[] = {
 double previousTemperature;
 double currentTemperature;
 double targetTemperature;
-#ifdef PID
 double pidOutput;
-#else
-bool pidOutput;
-#endif
 
 enum class State
 {
@@ -72,6 +66,8 @@ State state;
 uint32_t stateChange;
 uint32_t sensorReadStart;
 
+int presetIndex = 0;
+
 bool displayTargetTemperature = true;
 uint32_t displayChange;
 bool waitForNextTemperature = true;
@@ -83,23 +79,20 @@ DallasTemperature sensor(&oneWire);
 
 LEDMatrixDriver ledMatrix(1, kLEDChipSelect);
 
-#ifdef PID
 AutoPID pid(&currentTemperature, &targetTemperature, &pidOutput, kPIDOutputMin, kPIDOutputMax, KP, KI, KD);
-#else
-AutoPIDRelay pid(&currentTemperature, &targetTemperature, &pidOutput, 5000, KP, KI, KD);
-#endif
 
 void setup()
 {
     Serial.begin(9600);
     Serial.println("Starting");
-    
+
     encoder.begin(kEncoderAPin, kEncoderBPin, kEncoderClicks, kMinTemp, kMaxTemp, kDefaultTemp);
     encoder.setChangedHandler(rotate);
 
     button.begin(kEncoderButtonPin);
-    button.setTapHandler(click);
+    button.setLongClickTime(800);
     button.setLongClickHandler(longClick);
+    button.setDoubleClickHandler(doubleClick);
 
     attachInterrupt(digitalPinToInterrupt(kEncoderButtonPin), clickInterrupt, CHANGE);
 
@@ -112,12 +105,7 @@ void setup()
     ledMatrix.setEnabled(true);
     ledMatrix.setIntensity(5);
 
-#ifdef PID
-    Timer1.initialize(100000);
-#else
-    pinMode(kPWMPin, OUTPUT);
-    digitalWrite(kPWMPin, HIGH);
-#endif
+    Timer1.initialize(100000);    // 10Hz
 
     state = State::Idle;
     stateChange = millis();
@@ -157,6 +145,7 @@ void loop()
 
             // Device will wake here
             sleep_disable();
+            setState(State::Idle);
             break;
         }
         case State::SetTemp:
@@ -213,11 +202,7 @@ void loop()
             }
 
             pid.run();
-#ifdef PID
             Timer1.pwm(kPWMPin, pidOutput);
-#else
-            digitalWrite(kPWMPin, pidOutput ? LOW : HIGH);
-#endif
             break;
         }
         case State::Error:
@@ -239,11 +224,7 @@ void setState(State newState)
     }
     else if (state == State::Heating)
     {
-#ifdef PID
         Timer1.pwm(kPWMPin, 0);
-#else
-        digitalWrite(kPWMPin, HIGH);
-#endif
     }
 
     if (state != newState)
@@ -378,23 +359,29 @@ void rotate(Rotary& encoder)
     setState(State::SetTemp);
     targetTemperature = encoder.getPosition();
 }
- 
+
 void clickInterrupt()
 {
-}
-void click(Button2& button)
-{
-    Serial.println("Click");
-    // woken by interrupt
+    // Wakes device from sleep
 }
 
 void longClick(Button2& button)
 {
-    Serial.println("Long click");
     if (state == State::Idle)
-        setState(State::Heating);
+        setState(State::SetTemp);
     else
         setState(State::Idle);
+}
+
+void doubleClick(Button2& button)
+{
+    setState(State::SetTemp);
+    targetTemperature = kPresetTemps[presetIndex];
+
+    ++presetIndex;
+    constexpr int kPresetCount = sizeof(kPresetTemps) / sizeof(kPresetTemps[0]);
+    if (presetIndex >= kPresetCount)
+        presetIndex = 0;
 }
 
 const char* toString(State state)
