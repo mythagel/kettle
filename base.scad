@@ -37,7 +37,7 @@ module base ()
     difference() {
         hull() {
             cylinder(r=145/2, h=h);
-            rotate([0,0,30]) translate([0,-145/2 - 6.5, 18]) rotate([75,0,0]) rounded_cube(36*2, 36, 5, 5);
+            rotate([0,0,30]) translate([0,-145/2 - 6.5, 18]) rotate([75,0,0]) rounded_cube(72 + 12, 36, 5, 5);
         }
         translate([0,0,2]) cylinder(r=140/2, h=h+20);
 

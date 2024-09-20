@@ -7,14 +7,10 @@ module frame(){
         translate([0,0,-0.5]) cylinder(r=145/2 - 2, h=38+1);
     }
     
-    translate([0,0,38 - 12]) difference(){
-        cylinder(r=145/2, h=1);
-        translate([0,0,-0.5]) cylinder(r=145/2 - 7, h=2);
+    translate([0,0,38 - 12]) translate([0,0,-9]) difference(){
+        cylinder(r=145/2, h=10);
+        translate([0,0,-0.5]) cylinder(r2=145/2 - 7, r1=145/2, h=10+1);
     }
-    
-    step = 360/8;
-    for (theta = [step: step: 360])
-        rotate([0,0,theta]) translate([145/2 - 3/2 - 1,0, 24/2 + 2.5]) cube([3, 2, 24], center=true);
 }
 
 module base(){
@@ -25,7 +21,7 @@ module base(){
     $fn=128;
     difference(){
         union(){
-            cylinder(r=145/2 - 2.5, h=2);
+            cylinder(r=145/2, h=2);
             translate([0,0,2]) cylinder(r1=(78.5 + 4)/2, r2=(69+4)/2, h=5);
             
             step = 360/3;
