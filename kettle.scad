@@ -1,6 +1,6 @@
-
+    $fn=256;
+    
 module frame(){
-    $fn=128;
     
     difference(){
         cylinder(r=145/2, h=38);
@@ -18,7 +18,7 @@ module base(){
     
     // TODO need smaller screws
     
-    $fn=128;
+
     difference(){
         union(){
             cylinder(r=145/2, h=2);
@@ -42,5 +42,15 @@ module base(){
     }
 }
 
-base();
-frame();
+difference()
+{
+    union(){
+        base();
+        frame();
+    }
+
+    translate([0,0,0]) difference(){
+        cylinder(r=145.5/2, h=5);
+        translate([0.0,0]) cylinder(r2=145.5/2, r1=140/2, h=5);
+    }
+}
